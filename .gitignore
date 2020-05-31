@@ -1,0 +1,4 @@
+config.py
+.vscode
+images
+__pycache__/
