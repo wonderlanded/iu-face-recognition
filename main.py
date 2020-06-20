@@ -34,14 +34,12 @@ sampleFiles = ['./sample/' + f for f in os.listdir('./sample') if isfile(join('.
 import config
 
 bot = commands.Bot(command_prefix=config.prefix)
-
 def loadImage(path, index):
     image = face_recognition.load_image_file(path)
     res = face_recognition.face_encodings(image)
     # bar.update(index)
     print(f'[{index}/{len(filtered)}] {path}')
-    if res: return res[0]
-    else: return None
+    return res[0] if res else None
 
 def filterNone(a):
     if a != None: return True
@@ -51,10 +49,6 @@ def isIU(a):
     if a > 0.6: return True
     else: return False
 
-def getRandom(list, n=1):
-    random.shuffle(list)
-    return list[:n]
-
 # bar = progressbar.ProgressBar(max_value=len(sampleFiles))
 
 if len(sampleFiles) < (config.limit if config.limit else len(sampleFiles)):
@@ -62,14 +56,14 @@ if len(sampleFiles) < (config.limit if config.limit else len(sampleFiles)):
     exit(0)
 filtered = random.sample(sampleFiles, k=config.limit if config.limit else len(sampleFiles))
 encoded = [ loadImage(el, filtered.index(el)+1) for el in filtered]
-faces = [ el for el in  encoded if el is not None]
+faces = [ el for el in encoded if el is not None]
 
 endTime = datetime.datetime.now()
-
-if len(faces)/len(sampleFiles) < 0.5: 
-    print(f'\n{"="*70}\n인식된 이미지의 수가 너무 적습니다. ({len(faces)/len(sampleFiles)*100}%)')
+print(faces)
+if len(faces)/len(filtered) < 0.5: 
+    print(f'\n{"="*70}\n인식된 이미지의 수가 너무 적습니다. ({len(faces)/len(filtered)*100}%)')
     exit(0)
-else: print(f'\n{"="*70}\nSuccessfully loaded {len(faces)} file(s) of {len(sampleFiles)}. ({len(faces)/len(sampleFiles)*100}% 인식되었습니다.)')
+else: print(f'\n{"="*70}\nSuccessfully loaded {len(faces)} file(s) of {len(filtered)}. ({len(faces)/len(filtered)*100}% 인식되었습니다.)')
 
 print(endTime - startTime)
 
@@ -84,14 +78,16 @@ async def on_message(message):
         
     if len(message.attachments) > 0 and re.compile(r'[\w-]+.(jpg|png|jpeg)').search(message.attachments[0].filename):
         fp = './images/{0.id}-{0.filename}'.format(message.attachments[0])
+        print(fp)
         await message.attachments[0].save(fp, use_cached=True)
 
         image = face_recognition.load_image_file(fp)
         image_encoded = face_recognition.face_encodings(image)
+
         if not image_encoded: return os.remove(fp)
         res = [ 1-r for r in face_recognition.face_distance(faces, image_encoded[0]) ]
+        print(f'{message.author.id} {len(list(filter(isIU, res)))}')
         if len(list(filter(isIU, res))) > round(len(faces) * 0.3) or 1 in res: await message.add_reaction('❤️')
-        await message.channel.send(len(list(filter(isIU, res))))
         os.remove(fp)
 @bot.command()
 async def match(ctx):
